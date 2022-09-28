@@ -42,4 +42,26 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    public function properties()
+    {
+        return $this->hasMany(Property::class, 'arrendador_id');
+    }
+
+    public function contracts()
+    {
+        return $this->hasMany(Contract::class, 'arrendador_id');
+    }
+
+    public function hasProperty($id)
+    {
+        return $this->properties->contains($id);
+    }
+
+    public function isPropertyInContract($property_id)
+    {
+        return $this->contracts
+            ->filter(fn($c) => $c->property->id == $property_id)
+            ->count();
+    }
 }
