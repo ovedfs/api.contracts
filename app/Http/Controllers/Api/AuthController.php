@@ -2,22 +2,47 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
-use App\Models\User;
 use Auth;
+use App\Models\User;
+use Illuminate\Support\Str;
+use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
     public function register(Request $request)
     {
-        $request->validate([
+        $rules = [
             'name' => 'required',
             'email' => 'required|email|unique:users',
-            'password' => 'required|confirmed'
-        ]);
+            'password' => 'required|confirmed',
+            'person_type_id' => 'required|integer'
+        ];
+
+        if($request->person_type_id == 1) {
+            $rules["rfc"] ="required";
+        } else if($request->person_type_id == 2) {
+            $rules["rfc"] ="sometimes";
+            $rules["curp"] ="required";
+        } else if($request->person_type_id == 3) {
+            $rules["nue"] ="required";
+            $rules["curp"] ="sometimes";
+        } else {
+            return response()->json([
+                'message' => 'Error al registrar al usuario, tipo de persona no valido',
+            ]);
+        }
+
+        $validator = Validator::make($request->all(), $rules);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Error al registrar al usuario',
+                'errors' => $validator->errors(),
+            ]);
+        }
 
         $user = new User();
         $user->name = $request->name;
@@ -25,13 +50,16 @@ class AuthController extends Controller
         $user->password = Hash::make($request->password);
         $user->email_verified_at = now();
         $user->remember_token = Str::random(10);
+        $user->person_type_id = $request->person_type_id;
 
         if($user->save()) {
             $token = $user->createToken('auth_token')->plainTextToken;
 
+            $user->setPersonTypeData($request->person_type_id, $request);
+
             return response()->json([
                 'message' => 'Usuario registrado correctamente',
-                'user' => $user,
+                'user' => $user->load('moral', 'national', 'foreign'),
                 'token' => $token
             ]);
         }
