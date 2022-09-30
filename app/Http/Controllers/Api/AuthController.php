@@ -57,6 +57,8 @@ class AuthController extends Controller
 
             $user->setPersonTypeData($request->person_type_id, $request);
 
+            $user->assignRole('arrendador');
+
             return response()->json([
                 'message' => 'Usuario registrado correctamente',
                 'user' => $user->load('moral', 'national', 'foreign'),
@@ -89,9 +91,12 @@ class AuthController extends Controller
 
     public function profile()
     {
+        $personType = auth()->user()->moral ? 'moral' : 
+                      (auth()->user()->national ? 'national' : 'foreign');
         return response()->json([
             'message' => 'Perfil del usuario',
-            'user' => auth()->user(),
+            'user' => auth()->user()->load($personType),
+            'roles' => auth()->user()->getRoleNames()
         ]);
     }
 
